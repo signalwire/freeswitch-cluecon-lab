@@ -11,7 +11,4 @@ services:
     stdin_open: true
     tty: true
     env_file: .env
-    ports:
-      - "0.0.0.0:5060:5060"
-      - "0.0.0.0:5080:5080"
-      - "0.0.0.0:20000-20100:20000-20100/udp"
+    network_mode: "host"

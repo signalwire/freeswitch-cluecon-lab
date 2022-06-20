@@ -1,18 +1,101 @@
 <profile name="internal">
+  <!--
+      This is a sofia sip profile/user agent.  This will service exactly one ip and port.
+      In FreeSWITCH you can run multiple sip user agents on their own ip and port.
+
+      When you hear someone say "sofia profile" this is what they are talking about.
+  -->
+
+  <!-- http://wiki.freeswitch.org/wiki/Sofia_Configuration_Files -->
+  <!--aliases are other names that will work as a valid profile name for this profile-->
+  <aliases>
+    <!--
+        <alias name="default"/>
+    -->
+  </aliases>
+  <!-- Outbound Registrations -->
+  <gateways>
+  </gateways>
+
+  <domains>
+    <!-- indicator to parse the directory for domains with parse="true" to get gateways-->
+    <!--<domain name="$${domain}" parse="true"/>-->
+    <!-- indicator to parse the directory for domains with parse="true" to get gateways and alias every domain to this profile -->
+    <!--<domain name="all" alias="true" parse="true"/>-->
+    <domain name="all" alias="true" parse="false"/>
+  </domains>
+
   <settings>
-    <param name="auth-calls" value="true"/>
-    <!-- Force subscription requests to require authentication -->
-    <param name="auth-subscriptions" value="true"/>
-    <param name="apply-nat-acl" value="nat.auto"/>
+
+
+    <!-- inject delay between dtmf digits on send to help some slow interpreters (also per channel with rtp_digit_delay var -->
+    <!-- <param name="rtp-digit-delay" value="40"/>-->
+
+    <!--
+        When calls are in no media this will bring them back to media
+        when you press the hold button.
+    -->
+    <!--<param name="media-option" value="resume-media-on-hold"/> -->
+
+    <!--
+        This will allow a call after an attended transfer go back to
+        bypass media after an attended transfer.
+    -->
+    <!--<param name="media-option" value="bypass-media-after-att-xfer"/>-->
+
+    <!-- Can be set to "_undef_" to remove the User-Agent header -->
+    <!-- <param name="user-agent-string" value="FreeSWITCH Rocks!"/> -->
 
     <param name="debug" value="0"/>
-    <param name="sip-trace" value="yes"/>
+    <!-- If you want FreeSWITCH to shutdown if this profile fails to load, uncomment the next line. -->
+    <!-- <param name="shutdown-on-fail" value="true"/> -->
+    <param name="sip-trace" value="no"/>
+    <param name="sip-capture" value="no"/>
 
+    <!-- Use presence_map.conf.xml to convert extension regex to presence protos for routing -->
+    <!-- <param name="presence-proto-lookup" value="true"/> -->
+
+
+    <!-- Don't be picky about negotiated DTMF just always offer 2833 and accept both 2833 and INFO -->
+    <!--<param name="liberal-dtmf" value="true"/>-->
+
+
+    <!--
+        Sometimes, in extremely rare edge cases, the Sofia SIP stack may stop
+        responding. These options allow you to enable and control a watchdog
+        on the Sofia SIP stack so that if it stops responding for the
+        specified number of milliseconds, it will cause FreeSWITCH to crash
+        immediately. This is useful if you run in an HA environment and
+        need to ensure automated recovery from such a condition. Note that if
+        your server is idle a lot, the watchdog may fire due to not receiving
+        any SIP messages. Thus, if you expect your system to be idle, you
+        should leave the watchdog disabled. It can be toggled on and off
+        through the FreeSWITCH CLI either on an individual profile basis or
+        globally for all profiles. So, if you run in an HA environment with a
+        master and slave, you should use the CLI to make sure the watchdog is
+        only enabled on the master.
+        If such crash occurs, FreeSWITCH will dump core if allowed. The
+        stacktrace will include function watchdog_triggered_abort().
+    -->
+    <param name="watchdog-enabled" value="no"/>
+    <param name="watchdog-step-timeout" value="30000"/>
+    <param name="watchdog-event-timeout" value="30000"/>
+
+    <param name="log-auth-failures" value="false"/>
+    <param name="forward-unsolicited-mwi-notify" value="false"/>
+
+    <param name="context" value="public"/>
+    <param name="rfc2833-pt" value="101"/>
+    <!-- port to bind to for sip traffic -->
+    <param name="sip-port" value="$${internal_sip_port}"/>
     <param name="dialplan" value="XML"/>
-    <param name="context" value="default"/>
-    <param name="codec-prefs" value="$${global_codec_prefs}"/>
-
+    <param name="dtmf-duration" value="2000"/>
+    <param name="inbound-codec-prefs" value="$${global_codec_prefs}"/>
+    <param name="outbound-codec-prefs" value="$${global_codec_prefs}"/>
+    <param name="rtp-timer-name" value="soft"/>
+    <!-- ip address to use for rtp, DO NOT USE HOSTNAMES ONLY IP ADDRESSES -->
     <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <!-- ip address to bind to, DO NOT USE HOSTNAMES ONLY IP ADDRESSES -->
     <param name="sip-ip" value="$${local_ip_v4}"/>
     <param name="ext-rtp-ip" value="auto-nat"/>
     <param name="ext-sip-ip" value="auto-nat"/>

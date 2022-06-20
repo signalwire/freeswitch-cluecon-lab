@@ -32,6 +32,7 @@ RUN apt-get autoremove
 EXPOSE 443/tcp
 EXPOSE 8021/tcp
 EXPOSE 5060/tcp 5060/udp 5080/tcp 5080/udp
+EXPOSE 6050/tcp 6050/udp
 EXPOSE 5061/tcp 5061/udp 5081/tcp 5081/udp
 EXPOSE 7443/tcp
 EXPOSE 5070/udp 5070/tcp

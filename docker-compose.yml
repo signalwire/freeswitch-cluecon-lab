@@ -6,6 +6,8 @@ services:
     container_name: "freeswitch"
     build:
       context: .
+      args:
+        - SIGNALWIRE_TOKEN=${SIGNALWIRE_TOKEN}
     volumes:
       - ./conf:/etc/freeswitch
     stdin_open: true

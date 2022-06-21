@@ -1,8 +1,14 @@
-# ClueCon TGI 2021 Freeswitch Workshop
+# FreeSWITCH Workshop
 
-This is a lab-style image for the ClueCon TGI 2021 FreeSWITCh workshop. It is built around Docker for ease of use.
+This is a lab-style image for the FreeSWITCH workshop. It is built around Docker for ease of use.
 
 The configuration folder is mounted to the Docker container for ease of access.
+
+## Building
+
+You need a SignalWire account to download the packages. It is free to sign up, and you can find instructions [here](https://freeswitch.org/confluence/display/FREESWITCH/HOWTO+Create+a+SignalWire+Personal+Access+Token).
+
+Add that to your `.env` file.
 
 ## Starting FreeSWITCH
 
@@ -14,4 +20,4 @@ Wait for FreeSWITCH to spin up, then run `docker-compose exec freeswitch bash` t
 
 ### Notes
 
-The Docker images are menat to be used on a non-firewalled machine running Docker on Linux.
+The Docker images are meant to be used on a non-firewalled machine running Docker on Linux.

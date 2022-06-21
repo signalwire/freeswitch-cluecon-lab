@@ -1,6 +1,8 @@
 # vim:set ft=dockerfile:
 FROM debian:buster
 
+ARG SIGNALWIRE_TOKEN
+
 # Source Dockerfile:
 # https://github.com/docker-library/postgres/blob/master/9.4/Dockerfile
 
@@ -9,15 +11,17 @@ RUN groupadd -r freeswitch --gid=999 && useradd -r -g freeswitch --uid=999 frees
 
 
 # make the "en_US.UTF-8" locale so freeswitch will be utf-8 enabled by default
-RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y locales wget && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 ENV LANG en_US.utf8
 
-# 1.10 is installed differently
-RUN apt-get update && apt-get install -y gosu curl gnupg2 wget lsb-release \
-    && wget -O - https://files.freeswitch.org/repo/deb/debian-release/fsstretch-archive-keyring.asc | apt-key add - \
-    && echo "deb http://files.freeswitch.org/repo/deb/debian-release/ `lsb_release -sc` main" > /etc/apt/sources.list.d/freeswitch.list \
-    && echo  "deb-src http://files.freeswitch.org/repo/deb/debian-release/ `lsb_release -sc` main" >> /etc/apt/sources.list.d/freeswitch.list
+RUN apt-get update && apt-get install -y gosu curl gnupg2 wget lsb-release apt-transport-https ca-certificates \
+    && wget --http-user=signalwire --http-password=$SIGNALWIRE_TOKEN -O /usr/share/keyrings/signalwire-freeswitch-repo.gpg https://freeswitch.signalwire.com/repo/deb/debian-unstable/signalwire-freeswitch-repo.gpg \
+    && echo "machine freeswitch.signalwire.com login signalwire password $SIGNALWIRE_TOKEN" > /etc/apt/auth.conf \
+    && echo "deb [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ `lsb_release -sc` main" > /etc/apt/sources.list.d/freeswitch.list \
+    && echo "deb-src [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ `lsb_release -sc` main" >> /etc/apt/sources.list.d/freeswitch.list
+
+RUN cat /etc/apt/sources.list.d/freeswitch.list
 
 RUN apt-get update && apt-get install -y freeswitch-meta-all
 RUN apt-get update && apt-get install -y dnsutils \

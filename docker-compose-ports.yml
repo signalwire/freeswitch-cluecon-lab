@@ -1,0 +1,26 @@
+version: "3"
+
+services:
+
+  freeswitch:
+    container_name: "freeswitch"
+    build:
+      context: .
+      args:
+        - SIGNALWIRE_TOKEN=${SIGNALWIRE_TOKEN}
+    volumes:
+      - ./conf:/etc/freeswitch
+    stdin_open: true
+    tty: true
+    env_file: .env
+    ports:
+      - "443"
+      - "8021"
+      - "5060"
+      - "5070"
+      - "5080"
+      - "6050"
+      - "5061"
+      - "5081"
+      - "7443"
+      - "16384-16484"

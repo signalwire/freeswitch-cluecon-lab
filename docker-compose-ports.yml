@@ -3,7 +3,7 @@ version: "3"
 services:
 
   freeswitch:
-    container_name: "freeswitch"
+    container_name: "freeswitch-community"
     build:
       context: .
       args:

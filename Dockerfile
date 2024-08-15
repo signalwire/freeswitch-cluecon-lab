@@ -1,5 +1,5 @@
 # vim:set ft=dockerfile:
-FROM debian:buster
+FROM debian:bullseye
 
 ARG SIGNALWIRE_TOKEN
 
@@ -23,10 +23,14 @@ RUN apt-get update && apt-get install -y gosu curl gnupg2 wget lsb-release apt-t
 
 RUN cat /etc/apt/sources.list.d/freeswitch.list
 
+RUN mv /bin/hostname /bin/hostname.bkp; \
+  echo "echo myhost.local" > /bin/hostname; \
+  chmod +x /bin/hostname
+
 RUN apt-get update && apt-get install -y freeswitch-meta-all
 RUN apt-get update && apt-get install -y dnsutils \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
+RUN mv /bin/hostname.bkp /bin/hostname
 # Clean up
 RUN apt-get autoremove
 

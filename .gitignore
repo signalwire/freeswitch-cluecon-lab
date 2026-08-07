@@ -61,3 +61,6 @@ vendor/
 __pycache__
 .node-persist
 config.json
+# TLS material is generated at container start by build/docker-entrypoint.sh.
+# Never commit private keys.
+conf/tls/*.pem

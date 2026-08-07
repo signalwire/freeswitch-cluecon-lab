@@ -1,0 +1,40 @@
+<configuration name="signalwire.conf" description="SignalWire">
+  <settings>
+    <!--
+        This file is not shipped by the lab by default - the package installs
+        one, but ./conf is bind-mounted over /etc/freeswitch, which masks it.
+        The module has working built-in defaults, so its absence is normally
+        harmless.
+
+        It is here to override the STUN server. mod_signalwire does two
+        separate STUN lookups - one to complete adoption, and one in
+        mod_signalwire_state_configure() to report its SIP endpoint to
+        SignalWire. Unlike the generic `stun` API, both bind to a specific
+        local IP and a fixed port from 6050 upwards, which on Docker Desktop
+        behaves differently from an ephemeral bind.
+
+        Observed on Docker Desktop, all with `fs_cli -x "stun <server>"`
+        succeeding 3/3 against every one of them:
+
+          stun.freeswitch.org      adoption times out
+          stun.l.google.com:19302  adoption works, configure times out in a
+                                   4-second retry loop:
+                                     SignalWire configure failed: stun [...] Timeout
+          stun.cloudflare.com:3478 both succeed
+
+        So the generic STUN API is not a valid test of whether the module will
+        work - only the module's own bind pattern is. Cloudflare is used
+        because it is the only one observed to satisfy both call sites.
+
+        Format is host:port.
+    -->
+    <param name="stun-server" value="stun.cloudflare.com:3478"/>
+
+    <!-- on/off/file-path -->
+    <!--<param name="kslog" value="on"/>-->
+    <!--<param name="blade-bootstrap" value="blade://switchblade:2100"/>-->
+    <!--<param name="adoption-service" value="https://adopt.signalwire.com/adoption"/>-->
+    <!-- override dialplan context for calls on connector -->
+    <!--<param name="override-context" value="signalwire"/>-->
+  </settings>
+</configuration>

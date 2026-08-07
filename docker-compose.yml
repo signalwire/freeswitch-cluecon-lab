@@ -1,19 +1,28 @@
-
 services:
   freeswitch:
     container_name: "freeswitch-community"
     build:
       context: .
-      args:
-        SIGNALWIRE_TOKEN: ${SIGNALWIRE_TOKEN}
+      secrets:
+        - signalwire_token
     volumes:
       - ./conf:/etc/freeswitch
-    sysctls:
-      net.ipv6.conf.all.disable_ipv6: 1
-      net.ipv6.conf.default.disable_ipv6: 1
-      net.ipv6.conf.lo.disable_ipv6: 1
+    # No ipv6 sysctls here: runc rejects net.* sysctls in the host network
+    # namespace, so they cannot be combined with network_mode: host. IPv6 is
+    # instead kept out of the way in the config - the ipv6 sofia profiles ship
+    # as .noload and the verto default-v6 profile is commented out.
     stdin_open: true
     tty: true
     env_file: .env
-  # network_mode: "host"
+    # On Linux, host networking is the only sane way to run a SIP/RTP server:
+    # it avoids userland proxying of the whole RTP port range and keeps the
+    # addresses FreeSWITCH advertises in SDP correct. If you are not on Linux,
+    # comment this out and use docker-compose-ports.yml instead.
+    network_mode: "host"
     command: ["freeswitch", "-nonatmap", "-nonat"]
+
+# The SignalWire token is passed as a build secret, not a build ARG, so it is
+# never written into an image layer or into `docker history`.
+secrets:
+  signalwire_token:
+    environment: SIGNALWIRE_TOKEN

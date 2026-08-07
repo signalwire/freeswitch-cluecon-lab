@@ -147,8 +147,13 @@
     <!-- NEEDS DOCUMENTATION -->
 
     <!-- RTP port range -->
-    <!-- <param name="rtp-start-port" value="16384"/> -->
-    <!-- <param name="rtp-end-port" value="32768"/> -->
+    <!-- Narrowed from the 16384-32768 default to 200 ports (~100 concurrent
+         calls, far more than a workshop needs). This keeps the range small
+         enough to publish through Docker in docker-compose-ports.yml, where
+         mapping all 16384 default ports takes minutes to start. If you raise
+         this, raise the published range in docker-compose-ports.yml to match. -->
+    <param name="rtp-start-port" value="16384"/>
+    <param name="rtp-end-port" value="16584"/>
 
     <!-- Test each port to make sure it is not in use by some other process before allocating it to RTP -->
     <!-- <param name="rtp-port-usage-robustness" value="true"/> -->

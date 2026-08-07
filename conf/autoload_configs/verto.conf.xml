@@ -36,27 +36,12 @@
       
     </profile>
 
-    <profile name="default-v6">
-      <param name="bind-local" value="[$${local_ip_v6}]:8081"/>
-      <param name="bind-local" value="[$${local_ip_v6}]:8082" secure="true"/>
-      <param name="force-register-domain" value="$${domain}"/>
-      <param name="secure-combined" value="$${certs_dir}/wss.pem"/>
-      <param name="secure-chain" value="$${certs_dir}/wss.pem"/>
-      <param name="userauth" value="true"/>
-      <!-- setting this to true will allow anyone to register even with no account so use with care -->
-      <param name="blind-reg" value="false"/>
-      <param name="rtp-ip" value="$${local_ip_v6}"/>
-      <!--  <param name="ext-rtp-ip" value=""/> -->
-      <param name="outbound-codec-string" value="opus,h264,vp8"/>
-      <param name="inbound-codec-string" value="opus,h264,vp8"/>
-
-      <param name="apply-candidate-acl" value="wan_v6.auto"/>
-      <param name="apply-candidate-acl" value="rfc1918.auto"/>
-      <param name="apply-candidate-acl" value="any_v6.auto"/>
-      <param name="apply-candidate-acl" value="wan_v4.auto"/>
-      <param name="apply-candidate-acl" value="any_v4.auto"/>
-      <param name="timer-name" value="soft"/>
-      
-    </profile>
+    <!-- The IPv6 profile that used to live here has been removed.
+         IPv6 is not used in this lab: the matching sofia profiles ship as
+         internal-ipv6.xml.noload / external-ipv6.xml.noload, and with
+         network_mode: host a container cannot disable IPv6 via sysctls
+         (runc rejects net.* sysctls in the host network namespace).
+         Left active, this profile fought the v4 profile for 8081/8082.
+         Restore it from git history if you actually set up IPv6. -->
   </profiles>
 </configuration>

@@ -1,56 +1,91 @@
+# syntax=docker/dockerfile:1.7
 # vim:set ft=dockerfile:
-FROM debian:stretch
+#
+# Build FreeSWITCH from source instead of installing the packages.
+#
+# You still need a SignalWire token here, but only to reach the deb-src
+# repository for `apt-get build-dep`. The FreeSWITCH source itself is free.
+#
+# Build with:
+#   docker compose -f docker-compose.yml build --build-arg FS_VERSION=v1.11.1
+# after pointing the compose `dockerfile:` key at this file.
 
-ARG SIGNALWIRE_TOKEN
+FROM debian:trixie
 
-# Source Dockerfile:
-# https://github.com/docker-library/postgres/blob/master/9.4/Dockerfile
+# Pin to a release tag so the lab is reproducible. Override with
+# --build-arg FS_VERSION=master to track the development branch.
+ARG FS_VERSION=v1.11.1
 
 # explicitly set user/group IDs
 RUN groupadd -r freeswitch --gid=999 && useradd -r -g freeswitch --uid=999 freeswitch
 
-
 # make the "en_US.UTF-8" locale so freeswitch will be utf-8 enabled by default
-RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
-    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
-ENV LANG en_US.utf8
+RUN apt-get update && apt-get install -y locales \
+    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
+ENV LANG=en_US.utf8
 
-RUN echo $SIGNALWIRE_TOKEN
-
-RUN apt-get update && apt-get install -y gosu curl gnupg2 wget lsb-release apt-transport-https ca-certificates \
-    && wget --http-user=signalwire --http-password=$SIGNALWIRE_TOKEN -O /usr/share/keyrings/signalwire-freeswitch-repo.gpg https://freeswitch.signalwire.com/repo/deb/debian-unstable/signalwire-freeswitch-repo.gpg \
-    && echo "machine freeswitch.signalwire.com login signalwire password $SIGNALWIRE_TOKEN" > /etc/apt/auth.conf \
-    && echo "deb [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ `lsb_release -sc` main" > /etc/apt/sources.list.d/freeswitch.list \
-    && echo "deb-src [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ `lsb_release -sc` main" >> /etc/apt/sources.list.d/freeswitch.list
-
-RUN apt-get update && apt-get build-dep freeswitch -y \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Clean up
-RUN apt-get autoremove
+# Pull the build dependencies from the authenticated deb-src repo. As in the
+# package Dockerfile, the token is a BuildKit secret and both the credentials
+# and the authenticated repo are removed before the layer is committed.
+RUN --mount=type=secret,id=signalwire_token,required=true \
+    apt-get update && apt-get install -y \
+        apt-transport-https build-essential ca-certificates curl git gnupg2 gosu lsb-release openssl wget \
+    && TOKEN="$(cat /run/secrets/signalwire_token)" \
+    && curl --fail --silent --show-error \
+        --user "signalwire:${TOKEN}" \
+        --output /usr/share/keyrings/signalwire-freeswitch-repo.gpg \
+        https://freeswitch.signalwire.com/repo/deb/debian-release/signalwire-freeswitch-repo.gpg \
+    && printf '%s\n' \
+        'Types: deb deb-src' \
+        'URIs: https://freeswitch.signalwire.com/repo/deb/debian-release/' \
+        "Suites: $(lsb_release -sc)" \
+        'Components: main' \
+        'Signed-By: /usr/share/keyrings/signalwire-freeswitch-repo.gpg' \
+        > /etc/apt/sources.list.d/freeswitch.sources \
+    && printf 'machine freeswitch.signalwire.com login signalwire password %s\n' "${TOKEN}" \
+        > /etc/apt/auth.conf \
+    && chmod 600 /etc/apt/auth.conf \
+    && apt-get update \
+    && apt-get build-dep freeswitch -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/apt/auth.conf /etc/apt/sources.list.d/freeswitch.sources
 
 WORKDIR /usr/src
-RUN git clone https://github.com/signalwire/freeswitch.git
+RUN git clone --depth 1 --branch "${FS_VERSION}" https://github.com/signalwire/freeswitch.git
+
 WORKDIR /usr/src/freeswitch
-COPY build/modules.conf /usr/src/freeswitch
-RUN ./bootstrap.sh -j && ./configure -C
-RUN make && make install
-RUN ln -s /usr/local/freeswitch/bin/fs_cli /usr/local/bin
-RUN ln -s /usr/local/freeswitch/bin/freeswitch /usr/local/bin
+COPY build/modules.conf /usr/src/freeswitch/modules.conf
+
+# Same layout the Debian packages use, so ./conf can be bind-mounted over
+# /etc/freeswitch exactly as it is for the package build.
+RUN ./bootstrap.sh -j \
+    && ./configure -C \
+        --disable-dependency-tracking \
+        --prefix=/usr --localstatedir=/var --sysconfdir=/etc \
+        --with-gnu-ld --with-openssl \
+    && make -j"$(nproc)" \
+    && make install
+
+# Sounds and music-on-hold. The package build gets these from
+# freeswitch-meta-all; a source build has to fetch them explicitly, otherwise
+# the IVR and hold music in ./conf have nothing to play.
+RUN make cd-sounds-install cd-moh-install
 
 ## Ports
 # Open the container up to the world.
 EXPOSE 443/tcp
 EXPOSE 8021/tcp
 EXPOSE 5060/tcp 5060/udp 5080/tcp 5080/udp
+EXPOSE 6050/tcp 6050/udp
 EXPOSE 5061/tcp 5061/udp 5081/tcp 5081/udp
 EXPOSE 7443/tcp
 EXPOSE 5070/udp 5070/tcp
+# mod_verto: ws and wss, per conf/autoload_configs/verto.conf.xml
+EXPOSE 8081/tcp 8082/tcp
 EXPOSE 64535-65535/udp
 EXPOSE 16384-32768/udp
-EXPOSE 8081/tcp
-EXPOSE 8082/tcp
-
 
 # Limits Configuration
 COPY build/freeswitch.limits.conf /etc/security/limits.d/
@@ -58,8 +93,8 @@ COPY build/freeswitch.limits.conf /etc/security/limits.d/
 COPY build/docker-entrypoint.sh /
 
 # Healthcheck to make sure the service is running
-SHELL       ["/bin/bash"]
-HEALTHCHECK --interval=15s --timeout=5s \
+SHELL       ["/bin/bash", "-c"]
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s \
     CMD  fs_cli -x status | grep -q ^UP || exit 1
 
 ## Add additional things here

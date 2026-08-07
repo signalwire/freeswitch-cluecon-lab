@@ -1,26 +1,41 @@
-version: "3"
+# Published-ports variant, for when host networking is not available
+# (Docker Desktop on macOS/Windows).
+#
+# Note that publishing RTP through Docker's userland proxy is slow and that
+# FreeSWITCH will still advertise the container's address in SDP unless you set
+# ext-rtp-ip / ext-sip-ip. Prefer docker-compose.yml with host networking on
+# Linux. The RTP range is narrowed to 16384-16584 here because publishing all
+# 16384 default ports takes minutes to start; the matching rtp-end-port must be
+# set in conf/autoload_configs/switch.conf.xml.
 
 services:
-
   freeswitch:
     container_name: "freeswitch-community"
     build:
       context: .
-      args:
-        - SIGNALWIRE_TOKEN=${SIGNALWIRE_TOKEN}
+      secrets:
+        - signalwire_token
     volumes:
       - ./conf:/etc/freeswitch
     stdin_open: true
     tty: true
     env_file: .env
+    command: ["freeswitch", "-nonatmap", "-nonat"]
     ports:
-      - "443"
-      - "8021"
-      - "5060"
-      - "5070"
-      - "5080"
-      - "6050"
-      - "5061"
-      - "5081"
-      - "7443"
-      - "16384-16484"
+      # Explicit host:container mappings. Bare "5060" lets Docker pick a
+      # random high host port, which no SIP client can find.
+      - "8021:8021"          # mod_event_socket / fs_cli
+      - "5060:5060/tcp"      # internal SIP
+      - "5060:5060/udp"
+      - "5061:5061/tcp"      # internal SIP TLS
+      - "5080:5080/tcp"      # external SIP
+      - "5080:5080/udp"
+      - "5081:5081/tcp"      # external SIP TLS
+      - "8081:8081/tcp"      # mod_verto ws
+      - "8082:8082/tcp"      # mod_verto wss
+      - "7443:7443/tcp"      # mod_sofia wss
+      - "16384-16584:16384-16584/udp"   # RTP
+
+secrets:
+  signalwire_token:
+    environment: SIGNALWIRE_TOKEN

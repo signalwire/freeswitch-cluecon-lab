@@ -1,6 +1,16 @@
 #!/bin/bash
+#
+# Thin wrapper that exports .env into the environment before running Compose,
+# so the SIGNALWIRE_TOKEN build secret can be resolved at build time.
+#
+#   ./docker-env build
+#   ./docker-env up -d
 
 set -a
+# shellcheck disable=SC1091
 source .env
+set +a
 
-docker-compose "$@"
+# Compose v1 reached end of life in June 2023 and is gone from current Docker
+# installs; "docker compose" is the v2 subcommand.
+docker compose "$@"

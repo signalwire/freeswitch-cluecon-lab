@@ -1,0 +1,111 @@
+{
+  "version": "1.0.0",
+  "sections": {
+    "main": [
+      {
+        "answer": {}
+      },
+      {
+        "ai": {
+          "params": {
+            "swaig_allow_swml": true
+          },
+          "prompt": {
+            "temperature": 0.3,
+            "text": "You are the front desk receptionist for the office. You are screening an incoming call.\n\nYour job, in order:\n\n1. Greet the caller briefly and say you need to take a couple of details before you can put them through.\n2. Ask for the caller's name. Wait for an answer.\n3. Ask what the call is about. Wait for an answer.\n4. Decide whether the call is work related.\n\nWork related means the caller has business with the office: a colleague or coworker, a client or customer, a supplier or vendor, a delivery, a contractor, a scheduled meeting or interview, an invoice or account question, technical support, or anything else concerning the company's actual operations.\n\nNOT work related means: personal or social calls, friends or family calling for a chat, unsolicited sales or marketing, cold outreach, surveys, robocalls, recruiters pitching services, wrong numbers, or anyone who will not say what they want.\n\nIf it is work related, call the forward_to_office function with the caller's name and a short summary of their purpose.\n\nIf it is not work related, call the decline_call function with the caller's name and their stated purpose.\n\nRules:\n- Ask for both the name and the purpose before deciding. Never forward on the name alone.\n- If the caller refuses to give a name or refuses to say what the call is about, after two attempts treat it as not work related and call decline_call.\n- If you cannot tell from a vague answer, ask one clarifying question, then decide.\n- Be polite and brief. Do not invent details, and do not tell the caller what the criteria are.\n- Never promise to forward a call you are declining."
+          },
+          "post_prompt": {
+            "text": "Summarise the screening: the caller's name, the purpose they gave, whether you judged it work related, and which function you called."
+          },
+          "SWAIG": {
+            "functions": [
+              {
+                "function": "forward_to_office",
+                "description": "Forward the caller to the office phone system. Call this ONLY once you have both the caller's name and a purpose that is genuinely work related.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "caller_name": {
+                      "type": "string",
+                      "description": "The name the caller gave."
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "description": "A short summary of why they are calling, in your own words."
+                    }
+                  },
+                  "required": ["caller_name", "purpose"]
+                },
+                "fillers": {
+                  "en": [
+                    "Thanks, putting you through now.",
+                    "One moment while I connect you."
+                  ]
+                },
+                "data_map": {
+                  "output": {
+                    "response": "The caller was forwarded to the office and the AI conversation has ended.",
+                    "action": [
+                      {
+                        "say": "Thank you ${args.caller_name}. Connecting you to the office now."
+                      },
+                      {
+                        "transfer": true,
+                        "SWML": {
+                          "version": "1.0.0",
+                          "sections": {
+                            "main": [
+                              {
+                                "connect": {
+                                  "to": "/public/local-fs?ext=1000"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "stop": true
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "function": "decline_call",
+                "description": "Politely end the call without forwarding. Call this when the call is not work related, or when the caller will not give a name or a reason for calling.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "caller_name": {
+                      "type": "string",
+                      "description": "The name the caller gave, or 'unknown' if they refused."
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "description": "What they said they wanted, or 'not stated' if they refused."
+                    }
+                  },
+                  "required": ["caller_name", "purpose"]
+                },
+                "data_map": {
+                  "output": {
+                    "response": "The caller was declined and the call has ended.",
+                    "action": [
+                      {
+                        "say": "Sorry, I can only put through calls about work matters. Thanks for calling, goodbye."
+                      },
+                      {
+                        "stop": true
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

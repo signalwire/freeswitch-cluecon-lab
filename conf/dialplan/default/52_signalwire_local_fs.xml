@@ -1,0 +1,43 @@
+<include>
+  <!--
+      Calls arriving from a SignalWire Space resource, e.g. an AI agent that
+      forwards with:
+
+        { "connect": { "to": "/public/local-fs?ext=1000" } }
+
+      The whole resource path arrives as the destination number, query string
+      included - FreeSWITCH does no URL parsing of its own:
+
+        Processing web-caller <web-caller>->/public/local-fs?ext=1000 in context default
+
+      so the extension is pulled out of the query with a capture group.
+
+      This has to live in dialplan/default/ (included at default.xml:809) so it
+      is evaluated before the stock "enum" extension at default.xml:845, whose
+      condition is ^(.*)$ and therefore swallows anything left unmatched into an
+      ENUM lookup that cannot possibly succeed for a path like this.
+
+      transfer rather than a direct bridge, so the call re-enters the dialplan
+      at Local_Extension and gets the normal user treatment - ring the
+      registered device, fall through to voicemail, and so on.
+  -->
+  <extension name="signalwire_local_fs_ext">
+    <condition field="destination_number" expression="^/public/local-fs\?ext=(\d+)">
+      <action application="log" data="INFO SignalWire resource -> extension $1"/>
+      <action application="transfer" data="$1 XML default"/>
+    </condition>
+  </extension>
+
+  <!--
+      Same resource with no ext= parameter. Without this the call falls through
+      to the enum catch-all and fails in a way that looks like nothing at all
+      happened. Sent to echo so the path is still demonstrable; change or
+      remove this if you would rather it reject.
+  -->
+  <extension name="signalwire_local_fs_default">
+    <condition field="destination_number" expression="^/public/local-fs/?$">
+      <action application="log" data="INFO SignalWire resource with no ext= - sending to echo"/>
+      <action application="transfer" data="9196 XML default"/>
+    </condition>
+  </extension>
+</include>

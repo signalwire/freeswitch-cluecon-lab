@@ -1,0 +1,42 @@
+<include>
+  <!--
+      1800 - dial a SIP destination on SignalWire.
+
+      The target comes from SIGNALWIRE_SIP_DESTINATION in .env, so you can
+      repoint it at a different agent or script without editing the dialplan.
+
+      Per SignalWire's "Adding AI capabilities to FreeSWITCH" guide, you create
+      a SIP domain application in the dashboard, set "Handle Using" to an AI
+      Agent (or a SWML script), and dial its address, which looks like:
+
+        SIGNALWIRE_SIP_DESTINATION=MyAgent@your-space.dapp.swire.io;transport=tcp
+
+      Note this goes out the *external* profile, not the connector gateway that
+      mod_signalwire provisioned. The connector carries your inbound DIDs; a
+      domain app is reached directly by its own SIP URI. To route through the
+      connector instead, use:
+
+        sofia/gateway/signalwire/${sw_dest}
+
+      Registered phones reach this because directory users carry
+      user_context=default - the same context inbound connector calls land in,
+      so 1800 works from a softphone and from an inbound caller alike.
+
+      $${...} is a preprocessor variable, substituted when the XML is parsed
+      rather than at call time. It is copied into a channel variable first so
+      the value appears in the log line and in `uuid_dump` when debugging.
+      Changing it needs a container restart, not just reloadxml - the
+      preprocessor only reads the environment at startup.
+  -->
+  <extension name="signalwire_outbound_1800">
+    <condition field="destination_number" expression="^1800$">
+      <action application="set" data="sw_dest=$${signalwire_sip_destination}"/>
+      <action application="log" data="INFO 1800 -> SignalWire SIP destination '${sw_dest}'"/>
+      <!-- Empty means SIGNALWIRE_SIP_DESTINATION was never set; the bridge
+           fails immediately and the log line above shows it as ''. -->
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="set" data="continue_on_fail=false"/>
+      <action application="bridge" data="sofia/external/${sw_dest}"/>
+    </condition>
+  </extension>
+</include>

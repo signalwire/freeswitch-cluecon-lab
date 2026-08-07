@@ -17,14 +17,36 @@ services:
         - signalwire_token
     volumes:
       - ./conf:/etc/freeswitch
+      # Persist FreeSWITCH state (mod_signalwire keeps adoption-auth.dat and
+      # signalwire-conf.dat in storage_dir). Without this, recreating the
+      # container loses the connector adoption and you have to re-adopt with
+      # a fresh token every time.
+      - freeswitch-storage:/var/lib/freeswitch
     stdin_open: true
     tty: true
     env_file: .env
+    environment:
+      # Defaults here mean an existing .env that predates these vars still works.
+      # auto-nat is correct on Linux; on Docker Desktop set these to your Mac's
+      # LAN IP so local softphones get a routable address in SDP.
+      FS_INTERNAL_EXT_SIP_IP: ${FS_INTERNAL_EXT_SIP_IP:-auto-nat}
+      FS_INTERNAL_EXT_RTP_IP: ${FS_INTERNAL_EXT_RTP_IP:-auto-nat}
+      # Destination for extension 1800. Empty is fine until you set it.
+      SIGNALWIRE_SIP_DESTINATION: ${SIGNALWIRE_SIP_DESTINATION:-}
+      # env_file loads .env wholesale, which would push the build-time token
+      # into the running container where `docker inspect` can read it. It is
+      # never needed at runtime, so blank it. The build secret is unaffected:
+      # it reads SIGNALWIRE_TOKEN from the *host* environment, not from here.
+      SIGNALWIRE_TOKEN: ""
     command: ["freeswitch", "-nonatmap", "-nonat"]
     ports:
       # Explicit host:container mappings. Bare "5060" lets Docker pick a
       # random high host port, which no SIP client can find.
-      - "8021:8021"          # mod_event_socket / fs_cli
+      # 8021 (mod_event_socket) is deliberately NOT published. ESL binds
+      # 127.0.0.1 inside the container, so a published port would forward to
+      # the container's eth0 where nothing listens - and if it did work it
+      # would expose the event socket to the LAN with the default ClueCon
+      # password. Use `docker compose exec freeswitch fs_cli` instead.
       - "5060:5060/tcp"      # internal SIP
       - "5060:5060/udp"
       - "5061:5061/tcp"      # internal SIP TLS
@@ -39,3 +61,6 @@ services:
 secrets:
   signalwire_token:
     environment: SIGNALWIRE_TOKEN
+
+volumes:
+  freeswitch-storage:

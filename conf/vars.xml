@@ -13,6 +13,40 @@
        WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
   -->
   <X-PRE-PROCESS cmd="env-set" data="default_password=$FREESWITCH_PASSWORD"/>
+
+  <!--
+      Lab settings sourced from the environment (see .env / env.example).
+
+      The compose files supply defaults with ${VAR:-default}, so these are
+      always defined even if .env predates them.
+
+      internal_ext_sip_ip / internal_ext_rtp_ip
+        What the internal profile advertises in SDP. "auto-nat" is right on
+        Linux with host networking. On Docker Desktop set both to your Mac's
+        LAN IP, otherwise FreeSWITCH advertises the container address
+        (172.17.x.x) which no softphone on your machine can route to.
+
+      signalwire_sip_destination
+        Where extension 1800 sends a call. See
+        dialplan/default/51_signalwire_outbound.xml.
+  -->
+  <X-PRE-PROCESS cmd="env-set" data="internal_ext_sip_ip=$FS_INTERNAL_EXT_SIP_IP"/>
+  <X-PRE-PROCESS cmd="env-set" data="internal_ext_rtp_ip=$FS_INTERNAL_EXT_RTP_IP"/>
+  <X-PRE-PROCESS cmd="env-set" data="signalwire_sip_destination=$SIGNALWIRE_SIP_DESTINATION"/>
+
+  <!--
+      Codec preferences for the internal (phone-facing) profile only.
+
+      G711 first, deliberately. Softphones that offer opus alongside ICE/AVPF
+      renegotiate on a dynamic payload type and can re-INVITE with a fresh
+      media port each time, which ends in "Reinvite resulted in codec
+      negotiation failure". A static payload type sidesteps that entirely.
+      opus is still offered, so anything that only speaks opus still works.
+
+      Scoped to internal on purpose - verto and the SignalWire connector keep
+      $${global_codec_prefs} with opus first, which is what WebRTC wants.
+  -->
+  <X-PRE-PROCESS cmd="set" data="internal_codec_prefs=PCMU,PCMA,OPUS,G722,H264,VP8"/>
   <!-- Did you change it yet? -->
   <!--
       The following variables are set dynamically - calculated if possible by freeswitch - and

@@ -7,6 +7,11 @@ services:
         - signalwire_token
     volumes:
       - ./conf:/etc/freeswitch
+      # Persist FreeSWITCH state (mod_signalwire keeps adoption-auth.dat and
+      # signalwire-conf.dat in storage_dir). Without this, recreating the
+      # container loses the connector adoption and you have to re-adopt with
+      # a fresh token every time.
+      - freeswitch-storage:/var/lib/freeswitch
     # No ipv6 sysctls here: runc rejects net.* sysctls in the host network
     # namespace, so they cannot be combined with network_mode: host. IPv6 is
     # instead kept out of the way in the config - the ipv6 sofia profiles ship
@@ -14,6 +19,19 @@ services:
     stdin_open: true
     tty: true
     env_file: .env
+    environment:
+      # Defaults here mean an existing .env that predates these vars still works.
+      # auto-nat is correct on Linux; on Docker Desktop set these to your Mac's
+      # LAN IP so local softphones get a routable address in SDP.
+      FS_INTERNAL_EXT_SIP_IP: ${FS_INTERNAL_EXT_SIP_IP:-auto-nat}
+      FS_INTERNAL_EXT_RTP_IP: ${FS_INTERNAL_EXT_RTP_IP:-auto-nat}
+      # Destination for extension 1800. Empty is fine until you set it.
+      SIGNALWIRE_SIP_DESTINATION: ${SIGNALWIRE_SIP_DESTINATION:-}
+      # env_file loads .env wholesale, which would push the build-time token
+      # into the running container where `docker inspect` can read it. It is
+      # never needed at runtime, so blank it. The build secret is unaffected:
+      # it reads SIGNALWIRE_TOKEN from the *host* environment, not from here.
+      SIGNALWIRE_TOKEN: ""
     # On Linux, host networking is the only sane way to run a SIP/RTP server:
     # it avoids userland proxying of the whole RTP port range and keeps the
     # addresses FreeSWITCH advertises in SDP correct. If you are not on Linux,
@@ -26,3 +44,6 @@ services:
 secrets:
   signalwire_token:
     environment: SIGNALWIRE_TOKEN
+
+volumes:
+  freeswitch-storage:

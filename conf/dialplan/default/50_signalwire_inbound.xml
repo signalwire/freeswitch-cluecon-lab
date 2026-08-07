@@ -1,0 +1,26 @@
+<include>
+  <!--
+      Inbound calls from the SignalWire connector.
+
+      mod_signalwire hands approved calls to the "default" context with the
+      dialled DID as the destination number in E.164 form, e.g. +12014094059.
+      Nothing in the stock default.xml matches that shape, so without a rule
+      here the call is answered by nobody and hangs up immediately in
+      CS_EXECUTE with NORMAL_CLEARING - which looks like a failure but is just
+      an unrouted call.
+
+      The pattern matches any E.164 number rather than one specific DID, so
+      pointing more numbers at the connector needs no change. It cannot shadow
+      the local extensions (1000-1019, 5000, 9196, ...) because those never
+      carry a leading +.
+  -->
+  <extension name="signalwire_inbound_echo">
+    <condition field="destination_number" expression="^\+\d{10,15}$">
+      <action application="log" data="INFO SignalWire inbound ${caller_id_number} -> ${destination_number}, sending to echo"/>
+      <action application="answer"/>
+      <!-- let media settle before echoing, otherwise the first word is clipped -->
+      <action application="sleep" data="500"/>
+      <action application="echo"/>
+    </condition>
+  </extension>
+</include>

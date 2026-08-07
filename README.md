@@ -47,15 +47,34 @@ the container shell. The familiar `fs_cli` command will be available from there.
 only sane option: it avoids proxying the whole RTP range through userland and keeps the
 addresses FreeSWITCH advertises in SDP correct.
 
-If you are on Docker Desktop for macOS or Windows, host networking is not available. Use
-the published-ports variant instead:
+On Docker Desktop for macOS or Windows, host networking joins the Linux VM's namespace
+rather than your machine's, so it buys nothing. Which variant you want depends on the
+direction your traffic flows.
+
+**Outbound-initiated work — mod_signalwire, SIP trunks (macOS).** Use the overlay:
+
+```
+docker compose -f docker-compose.yml -f docker-compose-mac.yml up -d
+```
+
+This is enough for the SignalWire connector, because every flow starts from inside: the
+TLS registration goes out to SignalWire, and inbound INVITEs ride back down that same
+connection. No ports need publishing, and no public IP is required. Verified working on
+Docker Desktop end to end - an inbound DID reaches the dialplan and echoes with two-way
+audio, because SignalWire latches onto the outbound RTP stream.
+
+Copy it to `docker-compose.override.yml` if you would rather it apply automatically;
+that filename is gitignored precisely so it stays a per-machine choice.
+
+**Accepting unsolicited inbound SIP (macOS).** If you need real SIP phones to register
+from the host, you need published ports:
 
 ```
 docker compose -f docker-compose-ports.yml up -d
 ```
 
-Be aware that NAT between the host and the VM will still break media in most cases. The
-lab is designed for Linux.
+Expect trouble here. NAT between the host and the VM rewrites the addresses FreeSWITCH
+advertises in SDP, and one-way audio is the usual result. For that job, use Linux.
 
 ### Ports
 

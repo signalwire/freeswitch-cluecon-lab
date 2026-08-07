@@ -1,0 +1,27 @@
+# macOS overlay. Layer it on top of the main file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose-mac.yml up -d
+#
+# Contains no secrets. The SignalWire token is a *build* secret read from the
+# environment, never from a compose file, so this is safe to commit.
+#
+# Deliberately NOT named docker-compose.override.yml: that filename is applied
+# automatically by every `docker compose` invocation, which would silently
+# downgrade Linux users from host networking to bridge and break the workshop
+# setup. Keeping it explicit means you opt in. If you want it applied
+# automatically on your own machine, copy it to docker-compose.override.yml -
+# that name is gitignored.
+#
+# Why bridge instead of host: network_mode: host on Docker Desktop joins the
+# Linux VM's network namespace, not macOS's, so it buys nothing here. Bridge is
+# sufficient for mod_signalwire because every flow is outbound-initiated - the
+# TLS registration to SignalWire, and the inbound INVITEs that ride back down
+# that same connection. No ports need publishing.
+#
+# Verified on Docker Desktop: inbound DID -> mod_signalwire -> dialplan -> echo,
+# with two-way audio. SignalWire latches onto the outbound RTP stream, so the
+# lack of an inbound port mapping for the RTP range is not a problem.
+
+services:
+  freeswitch:
+    network_mode: "bridge"

@@ -1,16 +1,28 @@
 #!/bin/bash
 #
-# Thin wrapper that exports .env into the environment before running Compose,
-# so the SIGNALWIRE_TOKEN build secret can be resolved at build time.
-#
 #   ./docker-env build
 #   ./docker-env up -d
+#
+# This used to `source .env` before calling Compose. Don't reintroduce that.
+# Bash interprets the file as shell, so any value containing a shell
+# metacharacter is silently corrupted. A real example from this lab:
+#
+#   SIGNALWIRE_SIP_DESTINATION=blue@example.dapp.signalwire.com;transport=tcp
+#
+# sourced as two statements - the variable got the value up to the ';', and
+# 'transport=tcp' became a separate stray variable. FreeSWITCH then dialled a
+# destination with no transport parameter, and nothing in the logs suggested
+# why.
+#
+# Compose already reads ./.env natively for ${VAR} interpolation, and that path
+# handles such values correctly. It also resolves the SIGNALWIRE_TOKEN build
+# secret from .env with nothing exported in the shell - verified. So this
+# wrapper needs to do nothing but forward arguments, and exists only so the
+# documented commands keep working.
+#
+# Compose v1 reached end of life in June 2023; "docker compose" is the v2
+# subcommand.
 
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
+set -euo pipefail
 
-# Compose v1 reached end of life in June 2023 and is gone from current Docker
-# installs; "docker compose" is the v2 subcommand.
-docker compose "$@"
+exec docker compose "$@"

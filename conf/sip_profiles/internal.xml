@@ -84,21 +84,62 @@
     <param name="log-auth-failures" value="false"/>
     <param name="forward-unsolicited-mwi-notify" value="false"/>
 
+    <!--
+        Require authentication on INVITEs, not just REGISTERs.
+
+        This profile had been slimmed down at some point and lost the param,
+        while vars.xml kept defining internal_auth_calls for it. Without it,
+        sofia defaults to not challenging calls, which has two effects:
+
+          1. Calls are anonymous, so FreeSWITCH never resolves the caller to a
+             directory user and never applies their user_context. Everything
+             lands in this profile's context ("public") instead of "default",
+             so a registered phone cannot reach 9196, 5000, 1000-1019, ...
+
+          2. Anyone able to reach port 5060 can originate calls with no
+             credentials. On a published port that is the whole LAN; on a
+             public IP it is an open relay and a toll-fraud target.
+
+        Unauthenticated traffic still lands in "public" below, which is what
+        that context is for.
+    -->
+    <param name="auth-calls" value="$${internal_auth_calls}"/>
+
+    <!--
+        Challenge in the directory's own domain rather than whatever the phone
+        happens to address.
+
+        REGISTER survives a mismatch because force-register-domain (below)
+        rewrites the domain before lookup. INVITE has no equivalent, so with
+        the default auto_to realm FreeSWITCH looks the caller up in the domain
+        the phone dialled - e.g. the host's LAN IP - and finds nothing:
+
+          user_exists id 1000 10.0.42.188  -> false
+          user_exists id 1000 $${domain}   -> true
+
+        which fails authentication outright once auth-calls is on. Phones
+        answer with whatever realm the server challenges with, so pinning this
+        is safe and makes auth work no matter which address the phone targets.
+    -->
+    <param name="challenge-realm" value="$${domain}"/>
     <param name="context" value="public"/>
     <param name="rfc2833-pt" value="101"/>
     <!-- port to bind to for sip traffic -->
     <param name="sip-port" value="$${internal_sip_port}"/>
     <param name="dialplan" value="XML"/>
     <param name="dtmf-duration" value="2000"/>
-    <param name="inbound-codec-prefs" value="$${global_codec_prefs}"/>
-    <param name="outbound-codec-prefs" value="$${global_codec_prefs}"/>
+    <param name="inbound-codec-prefs" value="$${internal_codec_prefs}"/>
+    <param name="outbound-codec-prefs" value="$${internal_codec_prefs}"/>
     <param name="rtp-timer-name" value="soft"/>
     <!-- ip address to use for rtp, DO NOT USE HOSTNAMES ONLY IP ADDRESSES -->
     <param name="rtp-ip" value="$${local_ip_v4}"/>
     <!-- ip address to bind to, DO NOT USE HOSTNAMES ONLY IP ADDRESSES -->
     <param name="sip-ip" value="$${local_ip_v4}"/>
-    <param name="ext-rtp-ip" value="auto-nat"/>
-    <param name="ext-sip-ip" value="auto-nat"/>
+    <!-- What we advertise in SDP. "auto-nat" on Linux; on Docker Desktop set
+         FS_INTERNAL_EXT_*_IP to the Mac's LAN IP, or FreeSWITCH advertises the
+         container address and local softphones get no audio. See vars.xml. -->
+    <param name="ext-rtp-ip" value="$${internal_ext_rtp_ip}"/>
+    <param name="ext-sip-ip" value="$${internal_ext_sip_ip}"/>
     <param name="sip-port" value="$${internal_sip_port}"/>
     <param name="force-register-domain" value="$${domain}"/>
   </settings>
